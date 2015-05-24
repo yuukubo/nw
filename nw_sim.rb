@@ -19,12 +19,15 @@
 # それも問い合わせなきゃとかあるけどそこはまた後で。
 # 
 # 以下今後の予定？
-# class化？ packet, ip, message, nic,,,,
+# class化？ packet, ip, message, nic,,,,でも「必要になるまで作るな」ということで、まだ考えなし
 
 # class -----------------------------------
 
 class PC
-  def initialize(hostname, mac_addr)
+  attr_accessor :hostname, :mac_addr # 参照のみなのでreaderでも良いはずだけど取り敢えず。
+  def initialize(hostname, mac_addr) # インスタンス毎にホスト名とmacを持つ。
+    @hostname = hostname # インスタンス毎なので、インスタンス変数を使う。
+    @mac_addr = mac_addr
   end
   def send(mac_addr, message)
   end
@@ -35,7 +38,11 @@ class PC
 end
 
 class Hub
-  def initialize(hostname)
+  attr_accessor :hostname, :mac_addr1, :mac_addr2 # 参照のみなのでreaderでも良いはずだけど取り敢えず。
+  def initialize(hostname) # インスタンス毎にホスト名を持つ。macは？→macも必要なはず。それも2枚。
+    @hostname = hostname # インスタンス毎なので、インスタンス変数を使う。
+    @mac_addr1= hostname + 1.to_s # macはホスト名で取り敢えず作成。ホスト名被らないようにとか、制御もそのうち必要になる。
+    @mac_addr2= hostname + 2.to_s
   end
   def send(mac_addr, message)
   end
