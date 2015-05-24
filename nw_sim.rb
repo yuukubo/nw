@@ -18,17 +18,28 @@
 # あとそもそも相手のmacを先ず知ってることがおかしい。
 # それも問い合わせなきゃとかあるけどそこはまた後で。
 # 
+# コミット4回目で、取り敢えずケーブル差して、ハブが相手先のマックを学習したところまで。
+# すると次は、、それぞれのセンドとレシーブメソッドかな。
+# 、、、というか、同一メソッド名なので、ポートクラスに型だけ書いて、継承先で挙動実装かな？
+# 
 # 以下今後の予定？
 # class化？ packet, ip, message, nic,,,,でも「必要になるまで作るな」ということで、まだ考えなし
 
 # class -----------------------------------
 
 class Port
-  attr_accessor :mac_table, :nextportnum
+  attr_accessor :link_table, :nextportnum
   def initialize
     @nextportnum = 1
+    @link_table = []
   end
   def connected(next_to) # 実装はそれぞれの継承先で。
+  end
+  def send(mac_addr, message) # 同じく実装はそれぞれの継承先で。
+  end
+  def recv(mac_addr, message)
+  end
+  def rjct(mac_addr, message) # でもハブはリジェクトはしないかな？インテリジェントじゃないといらない気がするけど一応このままで
   end
 end
 
@@ -39,13 +50,15 @@ class PC < Port
     @mac_addr = mac_addr
     super() # 括弧なしで書いてて暫く嵌った。省略するとこのスコープの引数も投げてしまうということです。
   end
-  def send(mac_addr, message)
+  def send(mac_addr, message) # 特に何も気にせずに全ポートに対して作成されたパケットをぶん投げれば良いはず。
+     # ポートを確認
   end
   def recv(mac_addr, message)
   end
   def rjct(mac_addr, message)
   end
-  def connected(next_to) # PCの方のポートでは特に管理することなし。
+  def connected(next_to) # PCの方のポートでは特に管理することなし。→これだとどこにも行けないので取り敢えず相手のホスト名を管理？
+    @link_table << @nextportnum << next_to.hostname # リンク先ホスト名とポートナンバーを取り敢えず管理。
     @nextportnum += 1 # 今のところポート数無制限
   end
 end
@@ -57,7 +70,6 @@ class Hub < Port
     #@mac_addr1= hostname + 1.to_s # macはホスト名で取り敢えず作成。ホスト名被らないようにとか、制御もそのうち必要になる。
     #@mac_addr2= hostname + 2.to_s # macではなく、ポートと繋がっている先のmacの対照表を管理するということでした。
     super()
-    @mac_table = []
   end
   def send(mac_addr, message)
   end
@@ -65,8 +77,8 @@ class Hub < Port
   end
   def rjct(mac_addr, message)
   end
-  def connected(next_to) # 自分のportとリンク先との対照表
-      @mac_table << @nextportnum << next_to.mac_addr # ポートとマックの、、ハッシュの方が良いのかちょっと分からず取り敢えず配列
+  def connected(next_to) # 自分のportとリンク先との対照表。でもこれだとカスケードが考慮されていない。。どうしよう
+    @link_table << @nextportnum << next_to.mac_addr # ポートとマックの、、ハッシュの方が良いのかちょっと分からず取り敢えず配列
     @nextportnum += 1 # 今のところポート数無制限
   end
 end
@@ -76,7 +88,7 @@ class Cable
   end
   def self.connect(to, from) # ケーブルを繋いだ場合、起こることとしては、、mac同士で疎通開始とか？→hubにmacはなかった
     to.connected(from) # それぞれのポートのメソッドでリンク先を管理。
-    from.connected(to)
+    from.connected(to) # PC側ポートでは相手のホスト名。ハブは相手のmacを管理
   end
 end
 
@@ -114,9 +126,13 @@ p pc1.nextportnum
 p pc2.nextportnum
 p hub.nextportnum
 
-p hub.mac_table
+p pc1.link_table
+p pc2.link_table
+p hub.link_table
 
-p hub.mac_table.size
+p pc1.link_table.size
+p pc2.link_table.size
+p hub.link_table.size
 
 
 
