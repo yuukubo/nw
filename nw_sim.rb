@@ -1,29 +1,7 @@
 
 # coding: utf-8
 
-# 取り敢えず問題文の内容を記載。
-# 次に、正解の状況を先ず作ってみる。
-# 正解の状況は、存在するmacへのmessageは受け入れられる。
-# 存在しない場合は、破棄される。
-# NWキャプチャでそれを見ているような状況。
-# 表示は完了。
-# これだと、送るメッセージの変数内容をアウトプット部分が参照出来ている。
-# 詰まり、実際を考えると最初は参照出来ない情報を、
-# ケーブル繋いで、macで宛先指定して、ブロードキャストして、
-# hubは中継して、受け取り側は自分宛か確認して、
-# 自分宛なら受信、違ったら破棄の処理を行う。
-# ということがあって、宛先側で情報が参照可能になる。
-# 詰まり基本は変数受け渡し。見れる見れないとかをしっかり管理というか
-# 実際を考えて書いていかないとおかしなことになるはず。
-# あとそもそも相手のmacを先ず知ってることがおかしい。
-# それも問い合わせなきゃとかあるけどそこはまた後で。
-# 
-# コミット4回目で、取り敢えずケーブル差して、ハブが相手先のマックを学習したところまで。
-# すると次は、、それぞれのセンドとレシーブメソッドかな。
-# 、、、というか、同一メソッド名なので、ポートクラスに型だけ書いて、継承先で挙動実装かな？
-# 
-# 以下今後の予定？
-# class化？ packet, ip, message, nic,,,,でも「必要になるまで作るな」ということで、まだ考えなし
+# commit 7:パケット内容変更。ケーブルコネクトで双方に相手のインスタンス連携。
 
 # class -----------------------------------
 
@@ -34,12 +12,19 @@ class Port
     @link_table = []
   end
   def connected(next_to) # 実装はそれぞれの継承先で。
+    @nextportnum += 1 # 今のところポート数無制限
+    @obj_next_to = next_to
   end
-  def send(mac_addr, message) # 同じく実装はそれぞれの継承先で。
+  def send(to_mac_addr, from_mac_addr, message) # 同じく実装はそれぞれの継承先で。
+    next_to.recv(to_mac_addr, from_mac_addr, message)
   end
-  def recv(mac_addr, message)
+  def recv(to_mac_addr, from_mac_addr, message) # パケットの内容9回も書いて頭悪いなと思ったので後で直すはず。
+    @packet = [to_mac_addr, from_mac_addr, message]
   end
-  def rjct(mac_addr, message) # でもハブはリジェクトはしないかな？インテリジェントじゃないといらない気がするけど一応このままで
+  def rjct(to_mac_addr, from_mac_addr, message) # でもハブはリジェクトはしないかな？
+  end
+  def portchk # ポートが一つでもリンクしているか確認。c7：これ必要か分からないな、、
+    true if @link_table.size != 0
   end
 end
 
@@ -50,16 +35,15 @@ class PC < Port
     @mac_addr = mac_addr
     super() # 括弧なしで書いてて暫く嵌った。省略するとこのスコープの引数も投げてしまうということです。
   end
-  def send(mac_addr, message) # 特に何も気にせずに全ポートに対して作成されたパケットをぶん投げれば良いはず。
-     # ポートを確認
+  def send(to_mac_addr, from_mac_addr, message)
   end
-  def recv(mac_addr, message)
+  def recv(to_mac_addr, from_mac_addr, message)
   end
-  def rjct(mac_addr, message)
+  def rjct(to_mac_addr, from_mac_addr, message)
   end
   def connected(next_to) # PCの方のポートでは特に管理することなし。→これだとどこにも行けないので取り敢えず相手のホスト名を管理？
     @link_table << @nextportnum << next_to.hostname # リンク先ホスト名とポートナンバーを取り敢えず管理。
-    @nextportnum += 1 # 今のところポート数無制限
+    super
   end
 end
 
@@ -71,15 +55,15 @@ class Hub < Port
     #@mac_addr2= hostname + 2.to_s # macではなく、ポートと繋がっている先のmacの対照表を管理するということでした。
     super()
   end
-  def send(mac_addr, message)
+  def send(to_mac_addr, from_mac_addr, message)
   end
-  def recv(mac_addr, message)
+  def recv(to_mac_addr, from_mac_addr, message)
   end
-  def rjct(mac_addr, message)
+  def rjct(to_mac_addr, from_mac_addr, message)
   end
   def connected(next_to) # 自分のportとリンク先との対照表。でもこれだとカスケードが考慮されていない。。どうしよう
     @link_table << @nextportnum << next_to.mac_addr # ポートとマックの、、ハッシュの方が良いのかちょっと分からず取り敢えず配列
-    @nextportnum += 1 # 今のところポート数無制限
+    super
   end
 end
 
@@ -89,7 +73,7 @@ class Cable
   def self.connect(to, from) # ケーブルを繋いだ場合、起こることとしては、、mac同士で疎通開始とか？→hubにmacはなかった
     to.connected(from) # それぞれのポートのメソッドでリンク先を管理。
     from.connected(to) # PC側ポートでは相手のホスト名。ハブは相手のmacを管理
-  end
+  end # ケーブル繋ぐところで、繋ぐ先がPCかハブか、場合分けをしたくなくて、継承に至りました。
 end
 
 # obj setting -----------------------------
@@ -103,10 +87,10 @@ Cable.connect(pc2, hub)
 
 # main ------------------------------------
 
-packet1 = ["B", "hello"]
-packet2 = ["C", "hello"]
-pc1.send(packet1[0],packet1[1])
-pc1.send(packet2[0],packet2[1])
+packet1 = ["A", "B", "hello"]
+packet2 = ["A", "C", "hello"]
+pc1.send(packet1[0], packet1[1], packet1[2])
+pc1.send(packet2[0], packet2[1], packet1[2])
 
 # output ----------------------------------
 
