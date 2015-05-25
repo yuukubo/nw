@@ -41,6 +41,9 @@ class Port
   end
   def rjct(mac_addr, message) # でもハブはリジェクトはしないかな？インテリジェントじゃないといらない気がするけど一応このままで
   end
+  def portchk # ポートが一つでもリンクしているか確認。
+    true if @link_table.size != 0
+  end
 end
 
 class PC < Port
@@ -51,7 +54,11 @@ class PC < Port
     super() # 括弧なしで書いてて暫く嵌った。省略するとこのスコープの引数も投げてしまうということです。
   end
   def send(mac_addr, message) # 特に何も気にせずに全ポートに対して作成されたパケットをぶん投げれば良いはず。
-     # ポートを確認
+    if portchk # ポートの状況を確認
+#    @link_table[1] # 全ての接続先へ投げるのでeachでループ処理が必要。でも今は取り敢えず決め撃ちで。
+# 途中で今日は終了。今、相手のホスト名のリテラルは手に入れてるけど、相手のオブジェクトは捕まえていないという認識。
+# 相手のオブジェクトじゃないと、、、相手のメソッドが使えない。。
+# ケーブルのコネクトの状態、もう少し見直さないとだめかも？
   end
   def recv(mac_addr, message)
   end
@@ -89,7 +96,7 @@ class Cable
   def self.connect(to, from) # ケーブルを繋いだ場合、起こることとしては、、mac同士で疎通開始とか？→hubにmacはなかった
     to.connected(from) # それぞれのポートのメソッドでリンク先を管理。
     from.connected(to) # PC側ポートでは相手のホスト名。ハブは相手のmacを管理
-  end
+  end # ケーブル繋ぐところで、繋ぐ先がPCかハブか、場合分けをしたくなくて、継承に至りました。
 end
 
 # obj setting -----------------------------
